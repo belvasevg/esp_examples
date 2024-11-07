@@ -50,7 +50,7 @@ static esp_err_t i2c_mst_cfg(void)
     //установка драйвера I2C
     return i2c_driver_install(I2C_NUM_0, wroom32u_i2c_cfg.mode,0,0,0);
 }
-esp_err_t readAHT10_I2C(i2c_port_t i2c_num,uint8_t* data_hum, uint8_t* data_temp)
+esp_err_t readAHT10_I2C(i2c_port_t i2c_num,uint8_t* sensor_data,int size)
 {
     esp_err_t error_code = ESP_ERR_NO_MEM;
     //Контейнер для команд
@@ -64,10 +64,29 @@ esp_err_t readAHT10_I2C(i2c_port_t i2c_num,uint8_t* data_hum, uint8_t* data_temp
         error_code = i2c_master_write_byte(cmdLink,(AHT10_ADDR<<1)|I2C_MASTER_READ,ACK_CHECK_EN);
         if (error_code != ESP_OK) goto end;
         //чтение данных
-        error_code = i2c_master_read_byte(cmdLink,data_hum,ACK_VAL);
+        if (size>1)
+        {
+            ESP_LOGI(I2C_READ_TAG,"Read sensor data array bytes with size = %d",(size-1));
+            error_code = i2c_master_read(cmdLink,sensor_data,size-1,ACK_VAL);
+            if (error_code != ESP_OK) goto end;
+        }
+        ESP_LOGI(I2C_READ_TAG, "Last sensor data byte read");
+        error_code = i2c_master_read_byte(cmdLink,sensor_data+size-1,NACK_VAL);
         if (error_code != ESP_OK) goto end;
-        error_code = i2c_master_read_byte(cmdLink, data_temp,NACK_VAL);
-        if (error_code != ESP_OK) goto end;
+        // for (int i = 0; i<size;i++){
+        //     if (i==(size-1))
+        //     {
+        //         ESP_LOGI(I2C_READ_TAG,"Read last iteration %d",i);
+        //         error_code = i2c_master_read_byte(cmdLink, sensor_data+size-1,NACK_VAL);
+        //         if (error_code != ESP_OK) goto end;
+        //     }
+        //     else{
+        //     ESP_LOGI(I2C_READ_TAG,"Read iteration %d",i);
+        //     error_code = i2c_master_read_byte(cmdLink,sensor_data[i],ACK_VAL);
+        //     if (error_code != ESP_OK) goto end;
+        //     }
+        // }
+        
         error_code = i2c_master_stop(cmdLink);
         if (error_code != ESP_OK) goto end;
         error_code = i2c_master_cmd_begin(i2c_num,cmdLink,1000/portTICK_PERIOD_MS);
@@ -93,17 +112,16 @@ void app_main(void)
     else{
         ESP_LOGI(I2C_CFG_TAG, "I2C driver install success!");
     }
-    uint8_t sensor_data_hum,sensor_data_temp;
+    uint8_t sensor_data[10];
 
-    err = readAHT10_I2C(I2C_NUM_0,&sensor_data_hum,&sensor_data_temp);
+    err = readAHT10_I2C(I2C_NUM_0,sensor_data,10);
     //xSemaphoreTake(print_mux,portMAX_DELAY);
     if (err == ESP_ERR_TIMEOUT){
         ESP_LOGE(I2C_READ_TAG, "I2C Timeout error!");
         return;
     }
     else if(err == ESP_OK){
-        ESP_LOGI(I2C_READ_TAG,"Sensor data: %x",sensor_data_hum);
-        ESP_LOGI(I2C_READ_TAG,"Sensor_data_temp: %x",sensor_data_temp);
+        for (int i = 0;i<10;i++) ESP_LOGI(I2C_READ_TAG,"Sensor data: %x",sensor_data[i]);
     }
     else{
         ESP_LOGE(I2C_READ_TAG,"I2C read func error! Error: %d (%s)",err,esp_err_to_name(err));
