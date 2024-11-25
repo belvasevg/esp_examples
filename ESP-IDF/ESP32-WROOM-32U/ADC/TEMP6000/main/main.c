@@ -11,7 +11,7 @@
 #define TEMT6000_TAG "TEMT6000"
 #define TEMT6000 ADC_CHANNEL_7
 
-static void getValues(float *volts,float* voltsPercent,float* amps, float* microamps, float* lux)
+void getValues(float *volts,float* voltsPercent,float* amps, float* microamps, float* lux)
 {
     (*volts) = adc1_get_raw(TEMT6000)*5/4096.0;
     (*voltsPercent) = adc1_get_raw(TEMT6000)/4096.0*100;
@@ -19,7 +19,7 @@ static void getValues(float *volts,float* voltsPercent,float* amps, float* micro
     (*microamps) = (*amps) * 1000000;
     (*lux) = (*microamps) * 2.0;
 }
-static void log_values(float *volts,float* voltsPercent,float* amps, float* microamps, float* lux)
+void log_values(float *volts,float* voltsPercent,float* amps, float* microamps, float* lux)
 {
     ESP_LOGI(TEMT6000_TAG,"Voltage:%.2f\nVoltage Percents: %.2f",(*volts),(*voltsPercent));
     ESP_LOGI(TEMT6000_TAG, "Amperes: %.3f\nMicroamperes: %.3f",(*amps),(*microamps));
@@ -38,6 +38,4 @@ void app_main(void)
         log_values(&volts,&voltsPercent,&amps,&microamps,&lux);
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
-    
-
 }
